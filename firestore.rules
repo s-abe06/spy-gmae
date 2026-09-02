@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /rooms/{roomCode} {
+      // ルーム基本情報は参加者なら誰でも読める。作成は誰でも可、更新はホストのみ。
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && request.auth.uid == resource.data.hostUid;
+
+      // プレイヤー名簿(名前など)は公開情報。本人のみ自分の行を書ける。
+      match /players/{uid} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // 役職(スパイ/プレイヤー)は本人だけが読める。書き込みはホストのみ(役職決定時)。
+      match /secrets/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if request.auth != null
+          && request.auth.uid == get(/databases/$(database)/documents/rooms/$(roomCode)).data.hostUid;
+      }
+    }
+  }
+}

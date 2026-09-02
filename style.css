@@ -1,0 +1,177 @@
+:root {
+  --primary: #ff6b6b;
+  --secondary: #4dabf7;
+  --bg: #fff9f0;
+  --card-bg: #ffffff;
+  --text: #333333;
+  --success: #51cf66;
+  --danger: #ff6b6b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+}
+
+#app {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  padding: 24px 20px 60px;
+}
+
+.screen { display: none; }
+.screen.active { display: block; animation: fadeIn 0.3s ease; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.title {
+  font-size: 28px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #888;
+  margin-bottom: 32px;
+}
+
+.field-label {
+  display: block;
+  font-size: 14px;
+  font-weight: bold;
+  margin: 16px 0 6px;
+}
+
+input {
+  width: 100%;
+  padding: 14px;
+  font-size: 18px;
+  border: 2px solid #eee;
+  border-radius: 12px;
+  background: white;
+}
+
+input:focus { border-color: var(--secondary); outline: none; }
+
+.btn {
+  width: 100%;
+  padding: 16px;
+  font-size: 18px;
+  font-weight: bold;
+  border: none;
+  border-radius: 14px;
+  margin-top: 16px;
+  cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.2s ease;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn-primary { background: var(--primary); color: white; }
+.btn-secondary { background: var(--secondary); color: white; }
+.btn-text { background: transparent; color: #999; font-weight: normal; text-decoration: underline; }
+
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.divider {
+  text-align: center;
+  color: #bbb;
+  margin: 28px 0 8px;
+  font-size: 13px;
+}
+
+.error-text {
+  color: var(--danger);
+  text-align: center;
+  min-height: 20px;
+  font-size: 14px;
+}
+
+.room-code {
+  letter-spacing: 4px;
+  color: var(--secondary);
+  font-family: monospace;
+}
+
+.hint {
+  color: #999;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 8px;
+}
+
+.player-count {
+  text-align: center;
+  font-weight: bold;
+  margin: 16px 0 8px;
+}
+
+.player-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.player-list li {
+  background: var(--card-bg);
+  padding: 14px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  font-size: 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-list li.is-host::after {
+  content: "ホスト";
+  margin-left: auto;
+  font-size: 11px;
+  background: #ffe08a;
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+
+.role-card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 40px 24px;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  margin-top: 60px;
+  animation: popIn 0.4s ease;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.role-icon { font-size: 56px; margin: 0 0 8px; }
+
+.role-desc { color: #666; line-height: 1.6; }
+
+.dev-note {
+  margin-top: 24px;
+  padding: 10px;
+  background: #fff3bf;
+  border-radius: 10px;
+}
+
+.loading-text {
+  text-align: center;
+  margin-top: 40vh;
+  color: #aaa;
+}
