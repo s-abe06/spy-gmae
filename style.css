@@ -175,3 +175,168 @@ input:focus { border-color: var(--secondary); outline: none; }
   margin-top: 40vh;
   color: #aaa;
 }
+
+/* ---- Phase2: ミニゲーム・投票・結果画面 ---- */
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.game-label {
+  font-weight: bold;
+  font-size: 20px;
+  color: var(--primary);
+}
+
+.game-timer {
+  font-family: monospace;
+  font-size: 22px;
+  font-weight: bold;
+  background: var(--card-bg);
+  padding: 4px 14px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.game-area { display: none; }
+.game-area.active { display: block; }
+
+.banner {
+  text-align: center;
+  font-weight: bold;
+  padding: 10px;
+  border-radius: 10px;
+  background: #e7f5ff;
+  color: var(--secondary);
+}
+
+.topic-text {
+  text-align: center;
+  font-size: 22px;
+  font-weight: bold;
+  margin: 20px 0;
+}
+
+.hint-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 16px 0;
+}
+
+.hint-list li {
+  background: var(--card-bg);
+  border: 2px solid #ffd8a8;
+  font-size: 24px;
+  font-weight: bold;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+.kanji-input {
+  text-align: center;
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.choice-btn {
+  padding: 18px 10px;
+  font-size: 16px;
+  font-weight: bold;
+  border: 2px solid #eee;
+  border-radius: 12px;
+  background: var(--card-bg);
+  cursor: pointer;
+}
+
+.choice-btn.selected { border-color: var(--secondary); background: #e7f5ff; }
+.choice-btn.correct { border-color: var(--success); background: #ebfbee; }
+.choice-btn.wrong { border-color: var(--danger); background: #fff5f5; }
+.choice-btn:disabled { cursor: default; }
+
+.choice-btn .count-badge {
+  display: block;
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.big-timer {
+  text-align: center;
+  font-size: 48px;
+  font-family: monospace;
+  font-weight: bold;
+  color: var(--primary);
+  margin: 24px 0;
+}
+
+.mini-summary {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.mini-summary .game-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: #eee;
+}
+
+.mini-summary .game-dot.success { background: var(--success); color: white; }
+.mini-summary .game-dot.fail { background: var(--danger); color: white; }
+
+.reveal-icon {
+  text-align: center;
+  font-size: 56px;
+  margin-bottom: 4px;
+}
+
+.result-step { animation: popIn 0.4s ease; }
+
+.final-title {
+  text-align: center;
+  font-size: 26px;
+}
+
+.vote-btn {
+  width: 100%;
+  text-align: left;
+  background: var(--card-bg);
+  border: 2px solid #eee;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 8px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.vote-btn.selected { border-color: var(--primary); background: #fff0f0; }
+
+.vote-count {
+  float: right;
+  color: #999;
+  font-weight: bold;
+}

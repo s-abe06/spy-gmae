@@ -3,22 +3,54 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     match /rooms/{roomCode} {
-      // ルーム基本情報は参加者なら誰でも読める。作成は誰でも可、更新はホストのみ。
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && request.auth.uid == resource.data.hostUid;
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function roomData() {
+        return get(/databases/$(database)/documents/rooms/$(roomCode)).data;
+      }
+      function isHost() {
+        return isSignedIn() && request.auth.uid == roomData().hostUid;
+      }
+
+      // ルーム基本情報(進行状況・お題など)は参加者なら誰でも読める。更新はホストのみ。
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isHost();
 
       // プレイヤー名簿(名前など)は公開情報。本人のみ自分の行を書ける。
       match /players/{uid} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null && request.auth.uid == uid;
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && request.auth.uid == uid;
       }
 
-      // 役職(スパイ/プレイヤー)は本人だけが読める。書き込みはホストのみ(役職決定時)。
+      // 役職(スパイ/プレイヤー)は本人とホストだけが読める。
+      // RESULT画面(役職公開演出)になったら全員が読める。
       match /secrets/{uid} {
-        allow read: if request.auth != null && request.auth.uid == uid;
-        allow write: if request.auth != null
-          && request.auth.uid == get(/databases/$(database)/documents/rooms/$(roomCode)).data.hostUid;
+        allow read: if isSignedIn() &&
+          (request.auth.uid == uid || isHost() || roomData().status == 'RESULT');
+        allow write: if isHost();
+      }
+
+      // 漢字伝達ゲームのヒント(進行上、全員に見えてよい情報)
+      // 書き込みは本人、またはゲーム間のクリア処理を行うホスト
+      match /hints/{uid} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && (request.auth.uid == uid || isHost());
+      }
+
+      // 判断・一致ゲームの回答(本人・ホスト、または結果公開後のみ閲覧可)
+      match /answers/{uid} {
+        allow read: if isSignedIn() &&
+          (request.auth.uid == uid || isHost() || roomData().gameData.phase == 'REVEAL');
+        allow write: if isSignedIn() && (request.auth.uid == uid || isHost());
+      }
+
+      // 投票(本人・ホスト、または結果公開後のみ閲覧可)
+      match /votes/{uid} {
+        allow read: if isSignedIn() &&
+          (request.auth.uid == uid || isHost() || roomData().status == 'RESULT');
+        allow write: if isSignedIn() && (request.auth.uid == uid || isHost());
       }
     }
   }

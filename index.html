@@ -55,9 +55,89 @@
       <h2 id="role-title">あなたはプレイヤーです</h2>
       <p id="role-desc" class="role-desc">仲間と協力してゲームを成功させよう。</p>
     </div>
-    <p class="hint dev-note">
-      （ここから先のミニゲーム・投票フェーズは次のステップで実装します）
-    </p>
+    <button id="btn-start-first-game" class="btn btn-primary" style="display:none">最初のゲームを始める</button>
+    <p id="role-wait-text" class="hint">ホストが開始するのを待っています...</p>
+  </section>
+
+  <!-- ミニゲーム画面(伝達/判断一致 共通) -->
+  <section id="screen-game" class="screen">
+    <div class="game-header">
+      <span id="game-label" class="game-label">GAME 1</span>
+      <span id="game-timer" class="game-timer">--</span>
+    </div>
+
+    <!-- 漢字伝達ゲーム -->
+    <div id="kanji-area" class="game-area">
+      <p id="kanji-role-banner" class="banner"></p>
+      <p id="kanji-topic" class="topic-text"></p>
+
+      <ul id="kanji-hint-list" class="hint-list"></ul>
+
+      <div id="kanji-hint-input-area" style="display:none">
+        <input id="input-kanji-char" maxlength="2" placeholder="漢字1字" class="kanji-input" />
+        <button id="btn-submit-hint" class="btn btn-primary">ヒントを出す</button>
+      </div>
+
+      <div id="kanji-guess-area" style="display:none">
+        <p class="topic-text">このヒントから、お題は？</p>
+        <div id="kanji-guess-choices" class="choice-grid"></div>
+      </div>
+    </div>
+
+    <!-- 判断・一致ゲーム -->
+    <div id="judgment-area" class="game-area">
+      <p id="judgment-question" class="topic-text"></p>
+      <div id="judgment-choices" class="choice-grid"></div>
+      <p id="judgment-wait-text" class="hint" style="display:none">回答しました。他の人を待っています...</p>
+    </div>
+
+    <!-- 結果表示 -->
+    <div id="game-reveal-area" class="game-area" style="display:none">
+      <p class="reveal-icon" id="game-reveal-icon">✅</p>
+      <h2 id="game-reveal-title">成功！</h2>
+      <p id="game-reveal-detail" class="role-desc"></p>
+    </div>
+  </section>
+
+  <!-- 作戦会議 -->
+  <section id="screen-discussion" class="screen">
+    <h2>🤔 作戦会議</h2>
+    <p class="hint">アプリ外(通話・対面など)で自由に相談してください</p>
+    <p id="discussion-timer" class="big-timer">60</p>
+    <div id="discussion-game-summary" class="mini-summary"></div>
+  </section>
+
+  <!-- 投票 -->
+  <section id="screen-voting" class="screen">
+    <h2>🗳 投票</h2>
+    <p class="hint">スパイだと思う人に投票してください</p>
+    <p id="voting-timer" class="big-timer">20</p>
+    <div id="voting-choices" class="player-list"></div>
+    <p id="voting-wait-text" class="hint" style="display:none">投票しました。他の人を待っています...</p>
+  </section>
+
+  <!-- 結果 -->
+  <section id="screen-result" class="screen">
+    <div id="result-step-votes" class="result-step">
+      <h2>投票結果</h2>
+      <ul id="result-vote-list" class="player-list"></ul>
+    </div>
+
+    <div id="result-step-role" class="result-step" style="display:none">
+      <div class="role-card">
+        <p class="role-icon" id="result-role-icon">🕵️</p>
+        <h2 id="result-role-title"></h2>
+      </div>
+    </div>
+
+    <div id="result-step-final" class="result-step" style="display:none">
+      <h2 id="result-final-title" class="final-title"></h2>
+      <p id="result-final-detail" class="role-desc"></p>
+      <div id="result-game-summary" class="mini-summary"></div>
+
+      <button id="btn-play-again" class="btn btn-primary" style="display:none">もう一度遊ぶ</button>
+      <button id="btn-leave-result" class="btn btn-text">ルームを終了してホームに戻る</button>
+    </div>
   </section>
 
 </div>
@@ -68,6 +148,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 
 <script src="firebase-config.js"></script>
+<script src="game-data.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
