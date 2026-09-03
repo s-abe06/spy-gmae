@@ -13,10 +13,12 @@ service cloud.firestore {
         return isSignedIn() && request.auth.uid == roomData().hostUid;
       }
 
-      // ルーム基本情報(進行状況・お題など)は参加者なら誰でも読める。更新はホストのみ。
+      // ルーム基本情報(進行状況など)は参加者なら誰でも読み書きできる。
+      // ※進行のタイムアウト処理などを特定の1端末(ホスト)に依存させないための設計。
+      //   「友人内の信頼」を前提としたMVP向けの簡略化です。
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update: if isHost();
+      allow update: if isSignedIn();
 
       // プレイヤー名簿(名前など)は公開情報。本人のみ自分の行を書ける。
       match /players/{uid} {
@@ -25,32 +27,37 @@ service cloud.firestore {
       }
 
       // 役職(スパイ/プレイヤー)は本人とホストだけが読める。
-      // RESULT画面(役職公開演出)になったら全員が読める。
+      // 投票フェーズに入ったら誰でも読める(投票集計処理を特定の端末に依存させないため)。
       match /secrets/{uid} {
         allow read: if isSignedIn() &&
-          (request.auth.uid == uid || isHost() || roomData().status == 'RESULT');
+          (request.auth.uid == uid || isHost() ||
+           roomData().status == 'VOTING' || roomData().status == 'RESULT');
         allow write: if isHost();
       }
 
       // 漢字伝達ゲームのヒント(進行上、全員に見えてよい情報)
-      // 書き込みは本人、またはゲーム間のクリア処理を行うホスト
       match /hints/{uid} {
         allow read: if isSignedIn();
-        allow write: if isSignedIn() && (request.auth.uid == uid || isHost());
+        allow write: if isSignedIn();
       }
 
-      // 判断・一致ゲームの回答(本人・ホスト、または結果公開後のみ閲覧可)
+      // 判断・一致ゲームの回答/漢字伝達ゲームの回答者の回答(進行上、全員に見えてよい情報)
       match /answers/{uid} {
-        allow read: if isSignedIn() &&
-          (request.auth.uid == uid || isHost() || roomData().gameData.phase == 'REVEAL');
-        allow write: if isSignedIn() && (request.auth.uid == uid || isHost());
+        allow read: if isSignedIn();
+        allow write: if isSignedIn();
       }
 
-      // 投票(本人・ホスト、または結果公開後のみ閲覧可)
+      // 投票(投票フェーズ以降なら誰でも閲覧可。他はまだ非公開)
       match /votes/{uid} {
         allow read: if isSignedIn() &&
-          (request.auth.uid == uid || isHost() || roomData().status == 'RESULT');
-        allow write: if isSignedIn() && (request.auth.uid == uid || isHost());
+          (request.auth.uid == uid || roomData().status == 'VOTING' || roomData().status == 'RESULT');
+        allow write: if isSignedIn();
+      }
+
+      // 漢字伝達ゲームのお題(回答者以外だけが読める。回答者本人には見せない)
+      match /gameSecret/{docId} {
+        allow read: if isSignedIn() && request.auth.uid != roomData().gameData.guesserUid;
+        allow write: if isSignedIn();
       }
     }
   }
