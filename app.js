@@ -694,7 +694,7 @@ function ensureHostWatchers(data) {
   if (data.status === "VOTING") unsubSub = watchVotingAsHost(data);
 }
 
-// REVEAL表示のあと、次のGAMEまたはDISCUSSIONへ(ホストのみ・1回だけ)
+// REVEAL表示のあと、次のGAMEまたはDISCUSSIONへ
 let revealAdvanceTimer = null;
 function hostAdvanceAfterReveal(data) {
   const key = `reveal:${data.currentGameIndex}`;
@@ -702,25 +702,44 @@ function hostAdvanceAfterReveal(data) {
   lastHandledPhaseKey = key;
 
   if (revealAdvanceTimer) clearTimeout(revealAdvanceTimer);
-  revealAdvanceTimer = setTimeout(async () => {
-    const ref = roomRef();
-    if (data.currentGameIndex < 3) {
-      const nextIndex = data.currentGameIndex + 1;
-      await clearCollection(ref.collection("hints"));
-      await clearCollection(ref.collection("answers"));
-      const gameData = await generateGameData(nextIndex);
-      await ref.update({
-        currentGameIndex: nextIndex,
-        status: `GAME_${nextIndex + 1}`,
-        gameData,
-      });
-    } else {
-      await ref.update({
-        status: "DISCUSSION",
-        discussionEndsAt: Date.now() + DISCUSSION_SECONDS * 1000,
-      });
-    }
-  }, REVEAL_DISPLAY_SECONDS * 1000);
+  revealAdvanceTimer = setTimeout(() => claimAndAdvance(data.currentGameIndex), REVEAL_DISPLAY_SECONDS * 1000);
+}
+
+// 「次のゲームへ進む」準備(お題の抽選など)は複数端末が同時に行うと内容が食い違うため、
+// Firestoreトランザクションで「進行役」を1台だけに絞ってから準備を行う
+async function claimAndAdvance(fromIndex) {
+  const ref = roomRef();
+  let won = false;
+  try {
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const room = snap.data();
+      if (!room || room.currentGameIndex !== fromIndex || room.advanceClaim === fromIndex) return;
+      tx.update(ref, { advanceClaim: fromIndex });
+      won = true;
+    });
+  } catch (err) {
+    console.error("claimAndAdvance: transaction failed", err);
+    return;
+  }
+  if (!won) return; // 他の端末が既に進行役として処理中/処理済み
+
+  if (fromIndex < 3) {
+    const nextIndex = fromIndex + 1;
+    await clearCollection(ref.collection("hints"));
+    await clearCollection(ref.collection("answers"));
+    const gameData = await generateGameData(nextIndex);
+    await ref.update({
+      currentGameIndex: nextIndex,
+      status: `GAME_${nextIndex + 1}`,
+      gameData,
+    });
+  } else {
+    await ref.update({
+      status: "DISCUSSION",
+      discussionEndsAt: Date.now() + DISCUSSION_SECONDS * 1000,
+    });
+  }
 }
 
 // このrouteStatus拡張: GAME中もホスト監視をセットする
