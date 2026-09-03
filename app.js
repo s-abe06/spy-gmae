@@ -27,7 +27,8 @@ let playersCache = {}; // uid -> {name, ...}
 
 let unsubRoom = null;
 let unsubPlayers = null;
-let unsubSub = null; // hints/answers/votes など、フェーズごとに切り替わるサブスクリプション
+let unsubSub = null; // hints/answers/votes など、進行の完了判定に使うサブスクリプション(ホスト監視用)
+let unsubDisplay = null; // ヒント一覧などの表示専用サブスクリプション(unsubSubとは別管理)
 
 let countdownTimer = null;
 let lastHandledPhaseKey = null; // 同じフェーズの処理を二重実行しないためのガード(ホスト用)
@@ -292,6 +293,7 @@ function leaveRoom() {
   if (unsubRoom) unsubRoom();
   if (unsubPlayers) unsubPlayers();
   if (unsubSub) unsubSub();
+  if (unsubDisplay) unsubDisplay();
   clearCountdown();
   currentRoomCode = null;
   document.getElementById("input-room-code").value = "";
@@ -418,6 +420,7 @@ function renderGameScreen(data) {
     timerEl.textContent = "";
     renderGameReveal(gd);
     if (unsubSub) { unsubSub(); unsubSub = null; }
+    if (unsubDisplay) { unsubDisplay(); unsubDisplay = null; }
     hostAdvanceAfterReveal(data);
     return;
   }
@@ -460,12 +463,15 @@ function renderKanji(gd) {
     } else {
       banner.textContent = myTurn ? "あなたの番です！漢字1字でヒントを出してください" : "他の人の番です";
       topicEl.style.display = "block";
-      topicEl.textContent = `お題: ${gd.topic}`;
+      topicEl.textContent = "お題: 読み込み中...";
+      roomRef().collection("gameSecret").doc("kanjiTopic").get().then((snap) => {
+        if (snap.exists) topicEl.textContent = `お題: ${snap.data().topic}`;
+      });
       inputArea.style.display = myTurn ? "block" : "none";
     }
 
-    if (unsubSub) unsubSub();
-    unsubSub = roomRef().collection("hints").onSnapshot((snap) => {
+    if (unsubDisplay) unsubDisplay();
+    unsubDisplay = roomRef().collection("hints").onSnapshot((snap) => {
       const hints = {};
       snap.forEach((d) => (hints[d.id] = d.data().char));
       hintListEl.innerHTML = "";
@@ -497,7 +503,7 @@ function renderKanji(gd) {
       choicesEl.appendChild(btn);
     });
 
-    if (unsubSub) unsubSub();
+    if (unsubDisplay) { unsubDisplay(); unsubDisplay = null; }
   }
 }
 
@@ -580,8 +586,6 @@ function renderJudgment(gd) {
     });
     choicesEl.appendChild(btn);
   });
-
-  if (unsubSub) unsubSub();
 }
 
 function watchJudgmentAsHost(data) {
