@@ -305,8 +305,24 @@ function leaveRoom() {
 
 async function showRoleReveal(data) {
   try {
-    const secretSnap = await roomRef().collection("secrets").doc(myUid).get();
-    if (!secretSnap.exists) return;
+    let secretSnap = await roomRef().collection("secrets").doc(myUid).get();
+
+    // まれに書き込み直後の読み取りで見つからないことがあるため、少し待って数回だけ再試行する
+    let retries = 0;
+    while (!secretSnap.exists && retries < 5) {
+      await new Promise((r) => setTimeout(r, 400));
+      secretSnap = await roomRef().collection("secrets").doc(myUid).get();
+      retries++;
+    }
+
+    if (!secretSnap.exists) {
+      console.error("showRoleReveal: 自分の役職データが見つかりませんでした(リトライ後も)");
+      document.getElementById("role-title").textContent = "役職データの取得に失敗しました";
+      document.getElementById("role-desc").textContent = "ページを再読み込みしてください。";
+      document.getElementById("role-icon").textContent = "⚠️";
+      showScreen("screen-role");
+      return;
+    }
     const { role } = secretSnap.data();
 
     const icon = document.getElementById("role-icon");
@@ -359,10 +375,12 @@ async function generateGameData(index) {
     const topic = KANJI_TOPICS[Math.floor(Math.random() * KANJI_TOPICS.length)];
     const guesserUid = uids[Math.floor(Math.random() * uids.length)];
     const hintOrder = shuffle(uids.filter((u) => u !== guesserUid));
+    // お題そのものはルームドキュメントに置かない(回答者から誰でも読めてしまうため)
+    // → 別ドキュメントに保存し、Firestoreルールで回答者以外だけが読めるようにする
+    await roomRef().collection("gameSecret").doc("kanjiTopic").set({ topic: topic.answer });
     return {
       type: "kanji",
       phase: "HINT",
-      topic: topic.answer,
       choices: shuffle(topic.choices),
       guesserUid,
       hintOrder,
@@ -400,7 +418,7 @@ function renderGameScreen(data) {
     timerEl.textContent = "";
     renderGameReveal(gd);
     if (unsubSub) { unsubSub(); unsubSub = null; }
-    if (isHost) hostAdvanceAfterReveal(data);
+    hostAdvanceAfterReveal(data);
     return;
   }
 
@@ -417,7 +435,7 @@ function renderGameScreen(data) {
   }
 
   startCountdown(gd.phaseEndsAt, timerEl, () => {
-    if (isHost) hostHandlePhaseTimeout(data);
+    hostHandlePhaseTimeout(data);
   });
 }
 
@@ -532,8 +550,10 @@ function watchKanjiGuessAsHost(data) {
     if (!snap.exists) return;
     unsub();
     const choice = snap.data().choice;
-    const success = choice === gd.topic;
-    await finishCurrentGame(data, success, { chosenAnswer: choice, correctAnswer: gd.topic });
+    const topicSnap = await ref.collection("gameSecret").doc("kanjiTopic").get();
+    const topic = topicSnap.exists ? topicSnap.data().topic : null;
+    const success = choice === topic;
+    await finishCurrentGame(data, success, { chosenAnswer: choice, correctAnswer: topic });
   });
   return unsub;
 }
@@ -614,12 +634,15 @@ function renderGameReveal(gd) {
   }
 }
 
-// フェーズのタイムアウト(誰かが操作しなかった場合)をホストが処理
+// フェーズのタイムアウト(誰かが操作しなかった場合)を処理
+// ※ホストの端末がバックグラウンドになりタイマーが遅延するケースに備え、
+//   全クライアントが試みる(お題を読めない等の権限エラーは握りつぶして無視してよい)
 async function hostHandlePhaseTimeout(data) {
   const gd = data.gameData;
   const ref = roomRef();
 
-  if (gd.type === "kanji" && gd.phase === "HINT") {
+  try {
+    if (gd.type === "kanji" && gd.phase === "HINT") {
     const uid = gd.hintOrder[gd.currentHinterIndex];
     const hintSnap = await ref.collection("hints").doc(uid).get();
     if (!hintSnap.exists) {
@@ -628,7 +651,9 @@ async function hostHandlePhaseTimeout(data) {
   } else if (gd.type === "kanji" && gd.phase === "GUESS") {
     const ansSnap = await ref.collection("answers").doc(gd.guesserUid).get();
     if (!ansSnap.exists) {
-      await finishCurrentGame(data, false, { chosenAnswer: "(未回答)", correctAnswer: gd.topic });
+      const topicSnap = await ref.collection("gameSecret").doc("kanjiTopic").get();
+      const topic = topicSnap.exists ? topicSnap.data().topic : null;
+      await finishCurrentGame(data, false, { chosenAnswer: "(未回答)", correctAnswer: topic });
     }
   } else if (gd.type === "judgment" && gd.phase === "ANSWER") {
     const snap = await ref.collection("answers").get();
@@ -641,13 +666,17 @@ async function hostHandlePhaseTimeout(data) {
     const maxCount = Object.values(counts).length ? Math.max(...Object.values(counts)) : 0;
     const success = maxCount >= totalPlayers - JUDGMENT_ALLOWED_MISMATCH;
     await finishCurrentGame(data, success, { counts, totalPlayers });
+    }
+  } catch (err) {
+    // 回答者自身の端末がお題を読もうとして拒否される等は正常な動作なので無視する
+    console.log("hostHandlePhaseTimeout: skipped(no permission or already handled)", err.code || err.message);
   }
 }
 
-// フェーズが変わるたびにホスト側の監視を張り直す
+// フェーズが変わるたびに進行監視を張り直す(誰か1人の端末に依存しないよう全員で行う)
 function ensureHostWatchers(data) {
   const key = `${data.status}:${data.gameData?.phase}:${data.currentGameIndex}`;
-  if (!isHost || lastHandledPhaseKey === key) return;
+  if (lastHandledPhaseKey === key) return;
   lastHandledPhaseKey = key;
 
   if (unsubSub) { unsubSub(); unsubSub = null; }
@@ -707,12 +736,10 @@ function renderDiscussion(data) {
 
   const timerEl = document.getElementById("discussion-timer");
   startCountdown(data.discussionEndsAt, timerEl, () => {
-    if (isHost) {
-      const key = "discussion-end";
-      if (lastHandledPhaseKey === key) return;
-      lastHandledPhaseKey = key;
-      roomRef().update({ status: "VOTING", votingEndsAt: Date.now() + VOTING_SECONDS * 1000 });
-    }
+    const key = "discussion-end";
+    if (lastHandledPhaseKey === key) return;
+    lastHandledPhaseKey = key;
+    roomRef().update({ status: "VOTING", votingEndsAt: Date.now() + VOTING_SECONDS * 1000 });
   });
 }
 
@@ -756,7 +783,7 @@ function renderVoting(data) {
   container.appendChild(makeBtn("🚫 スパイはいない", "NONE"));
 
   startCountdown(data.votingEndsAt, document.getElementById("voting-timer"), () => {
-    if (isHost) finalizeVotingAsHost(data);
+    finalizeVotingAsHost(data);
   });
 }
 
